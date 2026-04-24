@@ -8,8 +8,10 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECKS_DIR="${SCRIPT_DIR}/checks"
 LIB_DIR="${SCRIPT_DIR}/lib"
+REPORT_DIR="${REPORT_DIR:-${SCRIPT_DIR}/reports}"
+METRICS_DIR="${METRICS_DIR:-${SCRIPT_DIR}/metrics}"
 
-# Pull in the shared clipboard (RESULTS list, log_pass, log_fail).
+# Pull in the shared clipboard (RESULT_* arrays, log_pass, log_fail).
 source "${LIB_DIR}/helpers.sh"
 
 echo "=== Compliance audit starting at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
@@ -25,15 +27,11 @@ done
 
 echo
 echo "=== Summary ==="
-pass_count=0
-fail_count=0
-for result in "${RESULTS[@]}"; do
-  status="${result%%|*}"
-  if [[ "$status" == "PASS" ]]; then
-    pass_count=$((pass_count + 1))
-  else
-    fail_count=$((fail_count + 1))
-  fi
-done
-echo "Passed: ${pass_count}"
-echo "Failed: ${fail_count}"
+compute_totals
+echo "Passed: ${PASS_COUNT}"
+echo "Failed: ${FAIL_COUNT}"
+
+echo
+write_text_report "$REPORT_DIR"
+write_json_report "$REPORT_DIR"
+write_prom_metrics "$METRICS_DIR"
