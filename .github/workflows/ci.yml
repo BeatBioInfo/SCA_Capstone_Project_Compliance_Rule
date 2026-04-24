@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck on run_audit.sh and lib/
+        run: shellcheck run_audit.sh lib/*.sh
+
+      - name: Run shellcheck on every check file
+        run: shellcheck -x checks/*.sh
+
+  structure:
+    name: Check file conventions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Verify every check has the required shape
+        run: |
+          fail=0
+          for f in checks/*.sh; do
+            echo "Checking $f"
+            if ! head -n 1 "$f" | grep -q '^#!/usr/bin/env bash$'; then
+              echo "  MISSING: bash shebang on line 1"
+              fail=1
+            fi
+            if ! grep -q '^check_id=' "$f"; then
+              echo "  MISSING: check_id variable"
+              fail=1
+            fi
+            if ! grep -q '^severity=' "$f"; then
+              echo "  MISSING: severity variable"
+              fail=1
+            fi
+            if ! grep -qE 'log_(pass|fail)' "$f"; then
+              echo "  MISSING: calls to log_pass/log_fail"
+              fail=1
+            fi
+          done
+          exit $fail
+
+  smoke:
+    name: Audit smoke test (mocked docker)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Create a fake docker command
+        run: |
+          mkdir -p "$HOME/bin"
+          cat > "$HOME/bin/docker" <<'EOF'
+          #!/usr/bin/env bash
+          # Minimal docker stub for CI. Returns empty results so every container
+          # check short-circuits to its "no containers to audit" PASS branch.
+          case "$1" in
+            ps)    ;; # print nothing → empty container list
+            inspect|image) ;;
+            *)     ;;
+          esac
+          exit 0
+          EOF
+          chmod +x "$HOME/bin/docker"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Run the audit
+        run: ./run_audit.sh
+
+      - name: Verify JSON report was written and is valid
+        run: |
+          test -d reports
+          latest_json=$(ls -t reports/*.json | head -1)
+          echo "Latest JSON: $latest_json"
+          jq '.' "$latest_json" > /dev/null
+          jq -e '.summary.total' "$latest_json"
+          jq -e '.findings | length > 0' "$latest_json"
