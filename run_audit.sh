@@ -12,6 +12,7 @@ REPORT_DIR="${REPORT_DIR:-${SCRIPT_DIR}/reports}"
 METRICS_DIR="${METRICS_DIR:-${SCRIPT_DIR}/metrics}"
 
 # Pull in the shared clipboard (RESULT_* arrays, log_pass, log_fail).
+# shellcheck source=lib/helpers.sh
 source "${LIB_DIR}/helpers.sh"
 
 echo "=== Compliance audit starting at $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
@@ -21,6 +22,7 @@ echo
 for check_file in "${CHECKS_DIR}"/c*.sh; do
   if [[ -f "$check_file" ]]; then
     echo "Running $(basename "$check_file")"
+    # shellcheck source=/dev/null
     source "$check_file"
   fi
 done

@@ -12,16 +12,17 @@ container_ids=$(docker ps -q)
 
 if [[ -z "$container_ids" ]]; then
   log_pass "$check_id" "$severity" "no running containers to audit"
+  # shellcheck disable=SC2317  # `exit 0` reached only when this file is run directly, not sourced.
   return 0 2>/dev/null || exit 0
 fi
-
 found_stale=0
 
 while IFS= read -r id; do
-   image=$(docker inspect --format '{{.Config.Image}}' "$id")
-   image_id=$(docker inspect --format '{{.Image}}' "$id")
-   created=$(docker image inspect --format '{{.Created}}' "$image_id" 2>/dev/null)
-
+  name=$(docker inspect --format '{{.Name}}' "$id" | sed 's|^/||')
+  image=$(docker inspect --format '{{.Config.Image}}' "$id")
+  image_id=$(docker inspect --format '{{.Image}}' "$id")
+  created=$(docker image inspect --format '{{.Created}}' "$image_id" 2>/dev/null)
+  
   if [[ -z "$created" ]]; then
     log_fail "$check_id" "$severity" "container '${name}': could not read image build date"
     found_stale=1

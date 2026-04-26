@@ -9,6 +9,7 @@ container_ids=$(docker ps -q)
 
 if [[ -z "$container_ids" ]]; then
   log_pass "$check_id" "$severity" "no running containers to audit"
+  # shellcheck disable=SC2317  # `exit 0` reached only when this file is run directly, not sourced.
   return 0 2>/dev/null || exit 0
 fi
 
