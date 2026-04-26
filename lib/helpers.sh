@@ -169,9 +169,6 @@ write_prom_metrics() {
 
   mkdir -p "$metrics_dir"
 
-  # Prometheus textfile collector expects writes to be atomic — a partial
-  # file could be read mid-write and cause a parse error. Standard pattern:
-  # write to a temp file, then rename into place.
   local tmp_file
   tmp_file=$(mktemp "${metrics_file}.XXXXXX")
 
@@ -183,6 +180,18 @@ write_prom_metrics() {
     echo "# HELP failed_checks Number of findings that failed in the latest audit."
     echo "# TYPE failed_checks gauge"
     echo "failed_checks ${FAIL_COUNT}"
+    echo
+    echo "# HELP compliance_failures_critical Number of CRITICAL severity failures in the latest audit."
+    echo "# TYPE compliance_failures_critical gauge"
+    echo "compliance_failures_critical ${CRIT_FAIL}"
+    echo
+    echo "# HELP compliance_failures_high Number of HIGH severity failures in the latest audit."
+    echo "# TYPE compliance_failures_high gauge"
+    echo "compliance_failures_high ${HIGH_FAIL}"
+    echo
+    echo "# HELP compliance_failures_medium Number of MEDIUM severity failures in the latest audit."
+    echo "# TYPE compliance_failures_medium gauge"
+    echo "compliance_failures_medium ${MED_FAIL}"
     echo
     echo "# HELP last_audit_timestamp Unix epoch seconds of when the latest audit completed."
     echo "# TYPE last_audit_timestamp gauge"
